@@ -23,19 +23,6 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
-# Validate we're in a git repository
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    log_error "Not in a git repository"
-    exit 1
-fi
-
-# Get the project root
-PROJECT_ROOT=$(git rev-parse --show-toplevel)
-if [ -z "$PROJECT_ROOT" ]; then
-    log_error "Failed to determine project root"
-    exit 1
-fi
-
 # Check if .dxcli already exists
 if [ -d "$PROJECT_ROOT/.dxcli" ]; then
     log_error "Project already has a .dxcli directory"
@@ -52,7 +39,7 @@ git clone --depth 1 https://github.com/Enterprise-Tooling-for-Symfony/dxcli.git 
 
 # Copy the .dxcli directory to the project
 log_info "Installing dxcli..."
-cp -r "$TMP_DIR/dxcli/.dxcli" "$PROJECT_ROOT/"
+cp -r "$TMP_DIR/dxcli/.dxcli" ./
 
 # Make scripts executable
 chmod +x "$PROJECT_ROOT/.dxcli/dxcli.sh"
@@ -62,10 +49,6 @@ find "$PROJECT_ROOT/.dxcli/metacommands" -type f -name "*.sh" -exec chmod +x {} 
 # Create dx symlink
 ln -s ".dxcli/dxcli.sh" "$PROJECT_ROOT/dx"
 chmod +x "$PROJECT_ROOT/dx"
-
-# Add to .gitignore if it doesn't contain the entries
-GITIGNORE="$PROJECT_ROOT/.gitignore"
-touch "$GITIGNORE"
 
 log_info "DX CLI installed successfully!"
 log_info "Run './dx .install' to set up the global dx command"
