@@ -24,7 +24,7 @@ log_error() {
 }
 
 # Check if .dxcli already exists
-if [ -d "$PROJECT_ROOT/.dxcli" ]; then
+if [ -d ./.dxcli ]; then
     log_error "Project already has a .dxcli directory"
     exit 1
 fi
@@ -42,13 +42,13 @@ log_info "Installing dxcli..."
 cp -r "$TMP_DIR/dxcli/.dxcli" ./
 
 # Make scripts executable
-chmod +x "$PROJECT_ROOT/.dxcli/dxcli.sh"
-find "$PROJECT_ROOT/.dxcli/subcommands" -type f -name "*.sh" -exec chmod +x {} \;
-find "$PROJECT_ROOT/.dxcli/metacommands" -type f -name "*.sh" -exec chmod +x {} \;
+chmod +x ./.dxcli/dxcli.sh
+find ./.dxcli/subcommands -type f -name "*.sh" -exec chmod +x {} \;
+find ./.dxcli/metacommands -type f -name "*.sh" -exec chmod +x {} \;
 
 # Create dx symlink
-ln -s ".dxcli/dxcli.sh" "$PROJECT_ROOT/dx"
-chmod +x "$PROJECT_ROOT/dx"
+ln -s ".dxcli/dxcli.sh" ./dx
+chmod +x ./dx
 
 log_info "DX CLI installed successfully!"
 log_info "Run './dx .install' to set up the global dx command"
