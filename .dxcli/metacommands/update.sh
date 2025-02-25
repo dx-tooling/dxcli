@@ -73,7 +73,7 @@ cp -R "$TEMP_DIR/.dxcli/"* "$DXCLI_DIR/"
 for item in "${PRESERVE[@]}"; do
     if [ -e "$TEMP_DIR/$item.preserved" ]; then
         log_info "Restoring your custom $item..."
-        rm -rf "$DXCLI_DIR/$item"
+        rm -rf "${DXCLI_DIR:?}/${item:?}"
         mv "$TEMP_DIR/$item.preserved" "$DXCLI_DIR/$item"
     fi
 done
