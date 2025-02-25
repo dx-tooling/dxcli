@@ -90,11 +90,17 @@ fi
 
 # Check if global dx command is available
 if command -v dx >/dev/null 2>&1; then
-    # Check if it's a different version
-    GLOBAL_DX_PATH=$(which dx)
-    if [[ "$GLOBAL_DX_PATH" != "$PWD/dx" ]]; then
+    # Get the real path of the global dx command (resolving symlinks)
+    GLOBAL_DX_PATH=$(command -v dx)
+    REAL_GLOBAL_DX_PATH=$(readlink -f "$GLOBAL_DX_PATH" 2>/dev/null || realpath "$GLOBAL_DX_PATH" 2>/dev/null || echo "$GLOBAL_DX_PATH")
+    
+    # Get the real path of our dxcli script
+    LOCAL_DXCLI_PATH="$PWD/.dxcli/dxcli.sh"
+    
+    # Compare the resolved paths
+    if [[ "$REAL_GLOBAL_DX_PATH" != "$LOCAL_DXCLI_PATH" ]]; then
         log_info "Global dx command is already available at: $GLOBAL_DX_PATH"
-        log_warning "If you want to update your global dx command, run './dx .install-globally'"
+        log_warning "If you want to update your global dx command, run './dx .install'"
     else
         log_info "Global dx command is already set up correctly"
     fi
