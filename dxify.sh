@@ -90,11 +90,25 @@ fi
 
 # Check if global dx command is available
 if command -v dx >/dev/null 2>&1; then
-    # Get the real path of the global dx command (resolving symlinks)
+    # Get the path of the global dx command
     GLOBAL_DX_PATH=$(command -v dx)
-    
     log_info "Global dx command is already available at: $GLOBAL_DX_PATH"
-    log_warning "If you want to update your global dx command, run './dx .install-globally'"
+    
+    # Check if the global wrapper script needs to be updated
+    LOCAL_WRAPPER_PATH="$TMP_DIR/dxcli/global-wrapper.sh"
+    
+    if [ -f "$LOCAL_WRAPPER_PATH" ] && [ -f "$GLOBAL_DX_PATH" ]; then
+        # Compare the content of the wrapper scripts (ignoring whitespace)
+        if ! diff -q -B -w "$LOCAL_WRAPPER_PATH" "$GLOBAL_DX_PATH" >/dev/null 2>&1; then
+            log_warning "Your global dx wrapper script is different from the latest version"
+            log_warning "Run './dx .install-globally' to update your global dx command"
+        else
+            log_info "Your global dx wrapper script is up to date"
+        fi
+    else
+        log_warning "Could not verify if your global dx wrapper is up to date"
+        log_warning "If you want to update your global dx command, run './dx .install-globally'"
+    fi
 else
     log_info "Run './dx .install-globally' to set up the global dx command"
 fi
