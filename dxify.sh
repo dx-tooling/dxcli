@@ -51,4 +51,41 @@ ln -s ".dxcli/dxcli.sh" ./dx
 chmod +x ./dx
 
 log_info "DX CLI installed successfully!"
+
+# Process .dxclirc file if it exists
+if [ -f ./.dxclirc ]; then
+    log_info "Found .dxclirc file, processing..."
+    
+    # Flag to track if we're in the install-commands section
+    in_install_commands=0
+    
+    # Read the .dxclirc file line by line
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Remove leading/trailing whitespace
+        line=$(echo "$line" | xargs)
+        
+        # Skip empty lines and comments
+        if [ -z "$line" ] || [[ "$line" == \#* ]]; then
+            continue
+        fi
+        
+        # Check for section headers
+        if [[ "$line" == \[*\] ]]; then
+            if [ "$line" == "[install-commands]" ]; then
+                in_install_commands=1
+                log_info "Found [install-commands] section"
+            else
+                in_install_commands=0
+            fi
+            continue
+        fi
+        
+        # Process git URLs in the install-commands section
+        if [ $in_install_commands -eq 1 ] && [ -n "$line" ]; then
+            log_info "Installing commands from: $line"
+            ./dx .install-commands "$line"
+        fi
+    done < ./.dxclirc
+fi
+
 log_info "Run './dx .install' to set up the global dx command"
