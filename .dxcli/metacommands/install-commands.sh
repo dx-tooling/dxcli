@@ -19,6 +19,7 @@ install_from_repo() {
     local TEMP_DIR=$(mktemp -d)
     local SUBCOMMANDS_DIR="$PROJECT_ROOT/.dxcli/subcommands"
 
+    # Setup cleanup trap inside the function
     cleanup() {
         rm -rf "$TEMP_DIR"
     }
@@ -90,6 +91,12 @@ install_from_repo() {
     find "$SUBCOMMANDS_DIR" -type f -name "*.sh" -exec chmod +x {} \;
 
     log_info "Successfully installed $(echo ${#REPO_SUBCOMMANDS[@]}) subcommands from $REPO_URL (commit: $COMMIT_ID)"
+    
+    # Remove the trap before returning
+    trap - EXIT
+    # Clean up manually
+    rm -rf "$TEMP_DIR"
+    
     return 0
 }
 
