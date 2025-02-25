@@ -16,14 +16,9 @@ source "$SCRIPT_DIR/../shared.sh"
 # Function to install commands from a repository URL
 install_from_repo() {
     local REPO_URL="$1"
-    local TEMP_DIR=$(mktemp -d)
+    local TEMP_DIR
+    TEMP_DIR=$(mktemp -d)
     local SUBCOMMANDS_DIR="$PROJECT_ROOT/.dxcli/subcommands"
-
-    # Setup cleanup trap inside the function
-    cleanup() {
-        rm -rf "$TEMP_DIR"
-    }
-    trap cleanup EXIT
 
     # Validate git command
     require_command git
@@ -32,6 +27,7 @@ install_from_repo() {
     log_info "Cloning repository $REPO_URL..."
     if ! git clone "$REPO_URL" "$TEMP_DIR" >/dev/null 2>&1; then
         log_error "Failed to clone repository"
+        rm -rf "$TEMP_DIR"
         return 1
     fi
 
@@ -43,6 +39,7 @@ install_from_repo() {
     # Check if subcommands directory exists in the cloned repo
     if [ ! -d "$TEMP_DIR/subcommands" ]; then
         log_error "No subcommands directory found in the repository"
+        rm -rf "$TEMP_DIR"
         return 1
     fi
 
@@ -92,8 +89,6 @@ install_from_repo() {
 
     log_info "Successfully installed $(echo ${#REPO_SUBCOMMANDS[@]}) subcommands from $REPO_URL (commit: $COMMIT_ID)"
     
-    # Remove the trap before returning
-    trap - EXIT
     # Clean up manually
     rm -rf "$TEMP_DIR"
     
