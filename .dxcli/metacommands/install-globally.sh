@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #@metadata-start
 #@name .install-globally
-#@description Install DX CLI globally (run once per user)
+#@description Install a dxcli wrapper script globally (run once per user)
 #@metadata-end
 
 set -e
@@ -23,34 +23,14 @@ fi
 
 source "$SCRIPT_FOLDER/../shared.sh"
 
-# Create the wrapper script content using a heredoc
-cat > "/tmp/dx-wrapper.tmp" << 'WRAPPER'
-#!/usr/bin/env bash
+# Path to the global wrapper script
+GLOBAL_WRAPPER_SRC="$SCRIPT_FOLDER/../global-wrapper.sh"
 
-# Find the nearest .dxcli/dxcli.sh by traversing up the directory tree
-find_dxcli() {
-    local dir="$PWD"
-    while [[ "$dir" != "/" ]]; do
-        if [[ -f "$dir/.dxcli/dxcli.sh" ]]; then
-            echo "$dir/.dxcli/dxcli.sh"
-            return 0
-        fi
-        dir="$(dirname "$dir")"
-    done
-    return 1
-}
-
-# Find the DX CLI script
-DXCLI_SCRIPT=$(find_dxcli)
-
-if [[ -z "$DXCLI_SCRIPT" ]]; then
-    echo "Error: No DX CLI installation found in current directory or any parent directory" >&2
+# Check if the global wrapper script exists
+if [ ! -f "$GLOBAL_WRAPPER_SRC" ]; then
+    log_error "Global wrapper script not found at: $GLOBAL_WRAPPER_SRC"
     exit 1
 fi
-
-# Execute the project-specific DX CLI with all arguments
-exec "$DXCLI_SCRIPT" "$@"
-WRAPPER
 
 # Determine the appropriate bin directory
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -70,13 +50,14 @@ fi
 # Install the wrapper script
 WRAPPER_PATH="$BIN_DIR/dx"
 
+# Copy the global wrapper script to its final location
 if [[ "$OSTYPE" == "darwin"* ]]; then
     log_info "Installing wrapper script (requires sudo)..."
-    sudo mv "/tmp/dx-wrapper.tmp" "$WRAPPER_PATH"
+    sudo cp "$GLOBAL_WRAPPER_SRC" "$WRAPPER_PATH"
     sudo chmod 755 "$WRAPPER_PATH"
     sudo chown root:wheel "$WRAPPER_PATH"
 else
-    mv "/tmp/dx-wrapper.tmp" "$WRAPPER_PATH"
+    cp "$GLOBAL_WRAPPER_SRC" "$WRAPPER_PATH"
     chmod +x "$WRAPPER_PATH"
 fi
 
