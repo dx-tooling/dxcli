@@ -75,7 +75,8 @@ for script_name in "${REPO_SUBCOMMANDS[@]}"; do
             # Add source metadata before metadata-end
             sed -i.bak "/#@metadata-end/i\\
 #@source-repo $REPO_URL\\
-#@source-commit-id $COMMIT_ID" "$script"
+#@source-commit-id $COMMIT_ID\\
+" "$script"
             rm -f "${script}.bak"
         else
             # If no metadata section exists, add one
