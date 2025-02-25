@@ -94,15 +94,15 @@ if command -v dx >/dev/null 2>&1; then
     GLOBAL_DX_PATH=$(command -v dx)
 
     # Check if the global wrapper script needs to be updated
-    LOCAL_WRAPPER_PATH="$TMP_DIR/dxcli/global-wrapper.sh"
+    LOCAL_WRAPPER_PATH="./.dxcli/global-wrapper.sh"
 
     if [ -f "$LOCAL_WRAPPER_PATH" ] && [ -f "$GLOBAL_DX_PATH" ]; then
         # Compare the content of the wrapper scripts (ignoring whitespace)
         if ! diff -q -B -w "$LOCAL_WRAPPER_PATH" "$GLOBAL_DX_PATH" >/dev/null 2>&1; then
-            log_warning "Your global dx wrapper script is different from the latest version"
+            log_warning "Your global dx wrapper script at $GLOBAL_DX_PATH is different from the latest version"
             log_warning "Run './dx .install-globally' to update your global dx command"
         else
-            log_info "Your global dx wrapper script is up to date"
+            log_info "Your global dx wrapper script at $GLOBAL_DX_PATH is up to date"
         fi
     else
         log_warning "Could not verify if your global dx wrapper is up to date"
