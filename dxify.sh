@@ -92,11 +92,10 @@ fi
 if command -v dx >/dev/null 2>&1; then
     # Get the path of the global dx command
     GLOBAL_DX_PATH=$(command -v dx)
-    log_info "Global dx command is already available at: $GLOBAL_DX_PATH"
-    
+
     # Check if the global wrapper script needs to be updated
     LOCAL_WRAPPER_PATH="$TMP_DIR/dxcli/global-wrapper.sh"
-    
+
     if [ -f "$LOCAL_WRAPPER_PATH" ] && [ -f "$GLOBAL_DX_PATH" ]; then
         # Compare the content of the wrapper scripts (ignoring whitespace)
         if ! diff -q -B -w "$LOCAL_WRAPPER_PATH" "$GLOBAL_DX_PATH" >/dev/null 2>&1; then
