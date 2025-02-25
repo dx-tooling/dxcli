@@ -24,7 +24,7 @@ fi
 source "$SCRIPT_FOLDER/../shared.sh"
 
 # Path to the global wrapper script
-GLOBAL_WRAPPER_SRC="$SCRIPT_FOLDER/../global-wrapper.sh"
+GLOBAL_WRAPPER_SRC="$SCRIPT_FOLDER/global-wrapper.sh"
 
 # Check if the global wrapper script exists
 if [ ! -f "$GLOBAL_WRAPPER_SRC" ]; then
