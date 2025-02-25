@@ -99,6 +99,7 @@ find_command_script() {
 # Execute a command by name
 execute_command() {
     local cmd=$1
+    shift  # Remove the command name from the arguments
     local script_path=""
     
     # Special case for help
@@ -135,7 +136,7 @@ execute_command() {
     metadata=$(get_command_metadata "$script_path")
     IFS='|' read -r name description <<< "$metadata"
     log_info "Running: $description"
-    /usr/bin/env bash "$script_path"
+    /usr/bin/env bash "$script_path" "$@"  # Pass all remaining arguments to the script
 }
 
 # Validate environment
@@ -143,4 +144,10 @@ require_command php
 require_command npm
 
 # Main execution
-execute_command "${1:-help}"
+if [ $# -eq 0 ]; then
+    execute_command "help"
+else
+    cmd="$1"
+    shift
+    execute_command "$cmd" "$@"
+fi
