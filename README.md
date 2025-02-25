@@ -99,7 +99,9 @@ https://github.com/your-org/your-commands-repo.git
 git@github.com:your-org/another-commands-repo.git
 ```
 
-When you run `dxify.sh`, it will automatically install commands from these repositories.
+You can create this file in your codebase prior to the initial dxcli project installation, and it will automatically be honored when dxcli is set up. 
+
+If this file exists in your project codebase and contains `[install-commands]` URLs, you can simply run `dx .install-commands` (without a URL) to install/update subcommands from these URLs.
 
 
 ## Updating DX CLI
