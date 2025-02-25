@@ -55,20 +55,20 @@ log_info "DX CLI installed successfully!"
 # Process .dxclirc file if it exists
 if [ -f ./.dxclirc ]; then
     log_info "Found .dxclirc file, processing..."
-    
+
     # Flag to track if we're in the install-commands section
     in_install_commands=0
-    
+
     # Read the .dxclirc file line by line
     while IFS= read -r line || [ -n "$line" ]; do
         # Remove leading/trailing whitespace
         line=$(echo "$line" | xargs)
-        
+
         # Skip empty lines and comments
         if [ -z "$line" ] || [[ "$line" == \#* ]]; then
             continue
         fi
-        
+
         # Check for section headers
         if [[ "$line" == \[*\] ]]; then
             if [ "$line" == "[install-commands]" ]; then
@@ -79,7 +79,7 @@ if [ -f ./.dxclirc ]; then
             fi
             continue
         fi
-        
+
         # Process git URLs in the install-commands section
         if [ $in_install_commands -eq 1 ] && [ -n "$line" ]; then
             log_info "Installing commands from: $line"
@@ -88,4 +88,16 @@ if [ -f ./.dxclirc ]; then
     done < ./.dxclirc
 fi
 
-log_info "Run './dx .install' to set up the global dx command"
+# Check if global dx command is available
+if command -v dx >/dev/null 2>&1; then
+    # Check if it's a different version
+    GLOBAL_DX_PATH=$(which dx)
+    if [[ "$GLOBAL_DX_PATH" != "$PWD/dx" ]]; then
+        log_info "Global dx command is already available at: $GLOBAL_DX_PATH"
+        log_warning "If you want to update your global dx command, run './dx .install-globally'"
+    else
+        log_info "Global dx command is already set up correctly"
+    fi
+else
+    log_info "Run './dx .install' to set up the global dx command"
+fi

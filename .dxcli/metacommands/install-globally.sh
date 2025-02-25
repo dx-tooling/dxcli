@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #@metadata-start
-#@name .install
+#@name .install-globally
 #@description Install DX CLI globally (run once per user)
 #@metadata-end
 
