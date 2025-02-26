@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #@metadata-start
-#@name example
+#@name _example
 #@description Copy this example script to create your own dx subcommands
 #@metadata-end
 
