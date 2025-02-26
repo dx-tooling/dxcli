@@ -106,6 +106,26 @@ get_commands() {
     printf "%s\n" "${commands[@]}"
 }
 
+# Find all parent directories containing .dxcli installations
+find_parent_dxcli_installations() {
+    local current_dir="$PWD"
+    local installations=()
+    local current_installation="$SCRIPT_FOLDER"
+    
+    # Add the current installation first (highest priority)
+    installations+=("$current_installation")
+    
+    # Find parent installations
+    while [[ "$current_dir" != "/" ]]; do
+        current_dir="$(dirname "$current_dir")"
+        if [[ -d "$current_dir/.dxcli" && "$current_dir/.dxcli" != "$current_installation" ]]; then
+            installations+=("$current_dir/.dxcli")
+        fi
+    done
+    
+    printf "%s\n" "${installations[@]}"
+}
+
 # Calculate Levenshtein distance between two strings
 levenshtein_distance() {
     local str1=$1
@@ -154,26 +174,42 @@ find_closest_command() {
     local min_distance=1000
     local closest=""
     local all_commands=()
+    local -A command_names=() # Use associative array to track unique command names
 
-    # Collect all command names
-    while IFS= read -r cmd; do
-        [[ -n "$cmd" ]] && all_commands+=("$cmd")
-    done < <(
-        if [[ -d "$SCRIPT_FOLDER/subcommands" ]]; then
-            find "$SCRIPT_FOLDER/subcommands" -type f -name "*.sh" -print0 |
+    # Get all installations for stacked subcommands
+    local installations=()
+    mapfile -t installations < <(find_parent_dxcli_installations)
+    
+    # Collect all command names from metacommands (current installation only)
+    if [[ -d "$SCRIPT_FOLDER/metacommands" ]]; then
+        while IFS= read -r -d '' script; do
+            local metadata
+            metadata=$(get_command_metadata "$script")
+            if [[ -n "$metadata" ]]; then
+                local name="${metadata%%|*}"
+                command_names["$name"]=1
+            fi
+        done < <(find "$SCRIPT_FOLDER/metacommands" -type f -name "*.sh" -print0)
+    fi
+    
+    # Collect all command names from stacked subcommands
+    for installation in "${installations[@]}"; do
+        if [[ -d "$installation/subcommands" ]]; then
             while IFS= read -r -d '' script; do
+                local metadata
                 metadata=$(get_command_metadata "$script")
-                [[ -n "$metadata" ]] && echo "${metadata%%|*}"
-            done
+                if [[ -n "$metadata" ]]; then
+                    local name="${metadata%%|*}"
+                    command_names["$name"]=1
+                fi
+            done < <(find "$installation/subcommands" -type f -name "*.sh" -print0)
         fi
-        if [[ -d "$SCRIPT_FOLDER/metacommands" ]]; then
-            find "$SCRIPT_FOLDER/metacommands" -type f -name "*.sh" -print0 |
-            while IFS= read -r -d '' script; do
-                metadata=$(get_command_metadata "$script")
-                [[ -n "$metadata" ]] && echo "${metadata%%|*}"
-            done
-        fi
-    )
+    done
+    
+    # Convert unique command names to array
+    for cmd in "${!command_names[@]}"; do
+        all_commands+=("$cmd")
+    done
 
     # Find the closest match
     for cmd in "${all_commands[@]}"; do

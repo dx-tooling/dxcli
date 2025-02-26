@@ -42,13 +42,44 @@ print_command_section() {
     done
 }
 
+# Get stacked subcommands from current and parent .dxcli installations
+get_stacked_subcommands() {
+    local -A command_map=()  # Use associative array to track unique commands
+    local installations=()
+    
+    # Get all parent installations (ordered by priority)
+    mapfile -t installations < <(find_parent_dxcli_installations)
+    
+    # Process each installation, with closer ones taking precedence
+    for installation in "${installations[@]}"; do
+        local subcommands_dir="$installation/subcommands"
+        
+        if [[ -d "$subcommands_dir" ]]; then
+            while IFS= read -r cmd_info; do
+                if [[ -n "$cmd_info" ]]; then
+                    IFS='|' read -r name description <<< "$cmd_info"
+                    # Only add if not already in the map (closer ones take precedence)
+                    if [[ -z "${command_map[$name]:-}" ]]; then
+                        command_map[$name]="$cmd_info"
+                    fi
+                fi
+            done < <(get_commands "$subcommands_dir")
+        fi
+    done
+    
+    # Output the unique commands
+    for cmd_info in "${command_map[@]}"; do
+        echo "$cmd_info"
+    done
+}
+
 # Show help message with available commands
 show_help() {
     local subcommands
     local metacommands
     
     # Get all commands
-    mapfile -t subcommands < <(get_commands "$SCRIPT_FOLDER/subcommands")
+    mapfile -t subcommands < <(get_stacked_subcommands)
     mapfile -t metacommands < <(get_commands "$SCRIPT_FOLDER/metacommands")
     
     # Calculate padding based on longest command name
@@ -96,6 +127,29 @@ find_command_script() {
     return 1
 }
 
+# Find a stacked subcommand script by its name
+find_stacked_subcommand_script() {
+    local cmd=$1
+    local installations=()
+    
+    # Get all parent installations (ordered by priority)
+    mapfile -t installations < <(find_parent_dxcli_installations)
+    
+    # Search in each installation, with closer ones taking precedence
+    for installation in "${installations[@]}"; do
+        local subcommands_dir="$installation/subcommands"
+        local script_path=""
+        
+        script_path=$(find_command_script "$cmd" "$subcommands_dir") || true
+        if [[ -n "$script_path" ]]; then
+            echo "$script_path"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
 # Execute a command by name
 execute_command() {
     local cmd=$1
@@ -108,12 +162,12 @@ execute_command() {
         return
     fi
     
-    # First check metacommands (they take precedence)
+    # First check metacommands (they take precedence and are not stacked)
     script_path=$(find_command_script "$cmd" "$SCRIPT_FOLDER/metacommands") || true
     
-    # Then check subcommands if not found
+    # Then check stacked subcommands if not found
     if [[ -z "$script_path" ]]; then
-        script_path=$(find_command_script "$cmd" "$SCRIPT_FOLDER/subcommands") || true
+        script_path=$(find_stacked_subcommand_script "$cmd") || true
     fi
     
     if [[ -z "$script_path" ]]; then
