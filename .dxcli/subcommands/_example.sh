@@ -29,7 +29,7 @@ if [ -z "$PROJECT_ROOT" ]; then
 fi
 
 source "$PROJECT_ROOT/.dxcli/shared.sh"
-# <<< END SETUP - from now on, use $PROJECT_ROOT to get the full path to your project's root folder.
+# <<< END SETUP - from here on, use $PROJECT_ROOT to get the full path to your project's root folder.
 
 
 log_info "Starting example script..."
