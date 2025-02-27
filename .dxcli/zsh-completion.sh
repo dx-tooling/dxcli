@@ -37,11 +37,11 @@ _get_command_metadata() {
         if [[ $in_metadata -eq 1 ]]; then
             # Parse name
             if [[ "$line" =~ ^#@name[[:space:]]*(.+)$ ]]; then
-                name="${match[1]}"
+                name="${BASH_REMATCH[1]}"
             fi
             # Parse description
             if [[ "$line" =~ ^#@description[[:space:]]*(.+)$ ]]; then
-                description="${match[1]}"
+                description="${BASH_REMATCH[1]}"
             fi
         fi
     done < "$script_path"
@@ -78,8 +78,7 @@ _find_parent_dxcli_installations() {
 
 # Get all available commands from stacked installations
 _get_stacked_commands() {
-    # Explicitly declare associative array for ZSH
-    typeset -A command_map
+    local -A command_map=()  # Use associative array to track unique commands
     local installations=()
     
     # Get all parent installations (ordered by priority)
@@ -101,11 +100,10 @@ _get_stacked_commands() {
                 local metadata
                 metadata=$(_get_command_metadata "$script")
                 if [[ -n "$metadata" ]]; then
-                    local cmd_name cmd_desc
-                    IFS=':' read -r cmd_name cmd_desc <<< "$metadata"
+                    IFS=':' read -r name description <<< "$metadata"
                     # Only add if not already in the map (closer ones take precedence)
-                    if [[ -z "${command_map[$cmd_name]}" ]]; then
-                        command_map[$cmd_name]="$cmd_desc"
+                    if [[ -z "${command_map[$name]:-}" ]]; then
+                        command_map[$name]="$description"
                     fi
                 fi
             done < <(find "$subcommands_dir" -type f -name "*.sh" -print0)
@@ -113,7 +111,7 @@ _get_stacked_commands() {
     done
     
     # Output the commands with descriptions
-    for name in "${(k)command_map[@]}"; do
+    for name in "${!command_map[@]}"; do
         echo "$name:${command_map[$name]}"
     done
 }
