@@ -5,4 +5,4 @@
 - When installing subcommands from a remote URL, add the short commit id to the resulting script filename to avoid collisions
 - When running dxcli.sh with -v, show the full file path to each subcommand
 - Write a README section on why & when and why & when not to use dxcli, contrast with Make
-- Order command name lists alphabetically when running dx
+- Add shell autocomplete
