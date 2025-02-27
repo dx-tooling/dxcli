@@ -354,18 +354,24 @@ get_stacked_subcommands() {
         fi
     done
     
-    # Output the unique commands
-    for cmd_info in "${command_map[@]}"; do
-        echo "$cmd_info"
+    # Output the unique commands sorted alphabetically by name
+    local sorted_commands=()
+    for name in $(printf '%s\n' "${!command_map[@]}" | sort); do
+        echo "${command_map[$name]}"
     done
 }
 
 # Get all available metacommands
 get_metacommands() {
     # Define the available metacommands with their descriptions
-    echo ".install-commands|Install subcommands from a git repository"
-    echo ".install-globally|Install a dxcli wrapper script globally (run once per user)"
-    echo ".update|Update the dxcli installation in the current project"
+    local metacmds=(
+        ".install-commands|Install subcommands from a git repository"
+        ".install-globally|Install a dxcli wrapper script globally (run once per user)"
+        ".update|Update the dxcli installation in the current project"
+    )
+    
+    # Sort metacommands alphabetically
+    printf '%s\n' "${metacmds[@]}" | sort
 }
 
 # Show help message with available commands
