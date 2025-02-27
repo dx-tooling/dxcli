@@ -1,10 +1,6 @@
 #compdef dx
 # ZSH completion script for dxcli
 
-# Enable ZSH compatibility features
-setopt BASH_REMATCH
-setopt KSH_ARRAYS
-
 # Find the nearest .dxcli/dxcli.sh by traversing up the directory tree
 _find_dxcli() {
     local dir="$PWD"
@@ -40,11 +36,11 @@ _get_command_metadata() {
         # Inside metadata block
         if [[ $in_metadata -eq 1 ]]; then
             # Parse name
-            if [[ "$line" =~ "#@name[[:space:]]*(.+)" ]]; then
+            if [[ "$line" =~ ^#@name[[:space:]]*(.+)$ ]]; then
                 name="${match[1]}"
             fi
             # Parse description
-            if [[ "$line" =~ "#@description[[:space:]]*(.+)" ]]; then
+            if [[ "$line" =~ ^#@description[[:space:]]*(.+)$ ]]; then
                 description="${match[1]}"
             fi
         fi
@@ -60,8 +56,7 @@ _get_command_metadata() {
 _find_parent_dxcli_installations() {
     local current_dir="$PWD"
     local installations=()
-    local dxcli_dir
-    dxcli_dir=$(_find_dxcli)
+    local dxcli_dir=$(_find_dxcli)
     
     if [[ -z "$dxcli_dir" ]]; then
         return
@@ -78,9 +73,7 @@ _find_parent_dxcli_installations() {
         fi
     done
     
-    for inst in "${installations[@]}"; do
-        echo "$inst"
-    done
+    printf "%s\n" "${installations[@]}"
 }
 
 # Get all available commands from stacked installations
@@ -88,10 +81,11 @@ _get_stacked_commands() {
     # Explicitly declare associative array for ZSH
     typeset -A command_map
     local installations=()
-    local installation
     
     # Get all parent installations (ordered by priority)
-    installations=($(_find_parent_dxcli_installations))
+    while IFS= read -r installation; do
+        installations+=("$installation")
+    done < <(_find_parent_dxcli_installations)
     
     # Add metacommands
     command_map[".install-commands"]="Install subcommands from a git repository"
@@ -103,10 +97,7 @@ _get_stacked_commands() {
         local subcommands_dir="$installation/subcommands"
         
         if [[ -d "$subcommands_dir" ]]; then
-            local scripts
-            scripts=($(find "$subcommands_dir" -type f -name "*.sh"))
-            
-            for script in "${scripts[@]}"; do
+            while IFS= read -r -d '' script; do
                 local metadata
                 metadata=$(_get_command_metadata "$script")
                 if [[ -n "$metadata" ]]; then
@@ -117,7 +108,7 @@ _get_stacked_commands() {
                         command_map[$cmd_name]="$cmd_desc"
                     fi
                 fi
-            done
+            done < <(find "$subcommands_dir" -type f -name "*.sh" -print0)
         fi
     done
     
@@ -139,14 +130,9 @@ _dx() {
     case $state in
         command)
             local -a commands
-            local cmd_list
-            cmd_list=($(_get_stacked_commands | sort))
-            
-            for cmd in "${cmd_list[@]}"; do
-                local name description
-                IFS=':' read -r name description <<< "$cmd"
+            while IFS=':' read -r name description; do
                 commands+=("$name:$description")
-            done
+            done < <(_get_stacked_commands | sort)
             
             _describe -t commands 'dx commands' commands
             ;;
