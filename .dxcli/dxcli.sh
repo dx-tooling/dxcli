@@ -188,11 +188,19 @@ metacommand_install_commands() {
 metacommand_install_globally() {
     # Path to the global wrapper script
     GLOBAL_WRAPPER_SRC="$SCRIPT_FOLDER/global-wrapper.sh"
+    # Path to the zsh completion script
+    ZSH_COMPLETION_SRC="$SCRIPT_FOLDER/zsh-completion.sh"
 
     # Check if the global wrapper script exists
     if [ ! -f "$GLOBAL_WRAPPER_SRC" ]; then
         log_error "Global wrapper script not found at: $GLOBAL_WRAPPER_SRC"
         return 1
+    fi
+
+    # Check if the zsh completion script exists
+    if [ ! -f "$ZSH_COMPLETION_SRC" ]; then
+        log_warning "ZSH completion script not found at: $ZSH_COMPLETION_SRC"
+        log_warning "Autocomplete functionality will not be available."
     fi
 
     # Determine the appropriate bin directory
@@ -237,6 +245,59 @@ metacommand_install_globally() {
         echo "export PATH=\"\$PATH:$BIN_DIR\"" >> "$SHELL_RC"
         log_info "Added $BIN_DIR to PATH in $SHELL_RC"
         log_warning "Please restart your shell or run: source $SHELL_RC"
+    fi
+
+    # Install ZSH completion if available
+    if [ -f "$ZSH_COMPLETION_SRC" ]; then
+        # Determine ZSH completion directory
+        ZSH_COMPLETION_DIR=""
+        
+        # Check common completion directories
+        for dir in "$HOME/.zsh/completion"; do
+            if [ -d "$dir" ]; then
+                ZSH_COMPLETION_DIR="$dir"
+                break
+            fi
+        done
+        
+        # Create completion directory if none found
+        if [ -z "$ZSH_COMPLETION_DIR" ]; then
+            ZSH_COMPLETION_DIR="$HOME/.zsh/completion"
+            mkdir -p "$ZSH_COMPLETION_DIR"
+        fi
+        
+        # Install completion script
+        COMPLETION_PATH="$ZSH_COMPLETION_DIR/_dx"
+        log_info "Installing ZSH completion script to $COMPLETION_PATH..."
+        
+        if [[ "$ZSH_COMPLETION_DIR" == /usr/* ]]; then
+            # System directory requires sudo
+            log_info "Installing to system directory (requires sudo)..."
+            sudo mkdir -p "$ZSH_COMPLETION_DIR"
+            sudo cp "$ZSH_COMPLETION_SRC" "$COMPLETION_PATH"
+            sudo chmod 644 "$COMPLETION_PATH"
+        else
+            # User directory
+            cp "$ZSH_COMPLETION_SRC" "$COMPLETION_PATH"
+            chmod 644 "$COMPLETION_PATH"
+        fi
+        
+        # Add completion directory to fpath if it's a custom location
+        if [[ "$ZSH_COMPLETION_DIR" == "$HOME/.zsh/completion" ]]; then
+            # Check if already in .zshrc
+            if ! grep -q "fpath=($ZSH_COMPLETION_DIR" "$HOME/.zshrc"; then
+                echo "" >> "$HOME/.zshrc"
+                echo "# Add custom completion directory to fpath" >> "$HOME/.zshrc"
+                echo "fpath=($ZSH_COMPLETION_DIR \$fpath)" >> "$HOME/.zshrc"
+                echo "autoload -Uz compinit && compinit" >> "$HOME/.zshrc"
+                
+                log_info "Added ZSH completion directory to fpath in ~/.zshrc"
+                log_warning "Please restart your shell or run: source ~/.zshrc"
+            fi
+        fi
+        
+        log_info "ZSH completion installed successfully!"
+        log_info "You can now use tab completion with the 'dx' command"
     fi
 
     log_info "DX CLI wrapper installed successfully at: $WRAPPER_PATH"
