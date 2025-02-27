@@ -255,14 +255,8 @@ metacommand_update() {
     TEMP_DIR=$(mktemp -d)
     DXCLI_DIR="$PROJECT_ROOT/.dxcli"
 
-    # Create a temporary update script
-    UPDATE_SCRIPT="$TEMP_DIR/update_script.sh"
-
-    # Ensure cleanup on exit
-    cleanup() {
-        rm -rf "$TEMP_DIR"
-    }
-    trap cleanup EXIT
+    # Create a temporary update script in a location that won't be deleted
+    UPDATE_SCRIPT="/tmp/dxcli_update_$(date +%s).sh"
 
     log_info "Updating dxcli installation..."
 
@@ -270,6 +264,7 @@ metacommand_update() {
     log_info "Fetching latest version from $REPO_URL..."
     if ! git clone --depth 1 "$REPO_URL" "$TEMP_DIR" >/dev/null 2>&1; then
         log_error "Failed to clone repository"
+        rm -rf "$TEMP_DIR"
         return 1
     fi
 
@@ -345,6 +340,8 @@ log_info "If you encounter any issues, you can restore from the backup."
 
 # Clean up
 rm -rf "$TEMP_DIR"
+# Remove this script
+rm -f "$0"
 EOF
 
     # Make the update script executable
@@ -352,9 +349,13 @@ EOF
 
     # Execute the update script as a separate process
     log_info "Launching update process..."
-    "$UPDATE_SCRIPT" "$DXCLI_DIR" "$TEMP_DIR" "$REPO_URL" &
+    nohup "$UPDATE_SCRIPT" "$DXCLI_DIR" "$TEMP_DIR" "$REPO_URL" > /dev/null 2>&1 &
 
-    log_info "Update finished."
+    log_info "Update process started in the background. You may continue using your terminal."
+    
+    # Don't clean up the temp directory as the background process needs it
+    trap - EXIT
+    
     return 0
 }
 
