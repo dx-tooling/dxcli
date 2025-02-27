@@ -110,10 +110,10 @@ metacommand_install_commands() {
         find "$SUBCOMMANDS_DIR" -type f -name "*.sh" -exec chmod +x {} \;
 
         log_info "Successfully installed $(echo ${#REPO_SUBCOMMANDS[@]}) subcommands from $REPO_URL (commit: $COMMIT_ID)"
-
+        
         # Clean up manually
         rm -rf "$TEMP_DIR"
-
+        
         return 0
     }
 
@@ -127,30 +127,30 @@ metacommand_install_commands() {
     # No URL provided, check for .dxclirc file
     if [ $# -eq 0 ]; then
         DXCLIRC_FILE="$PROJECT_ROOT/.dxclirc"
-
+        
         if [ ! -f "$DXCLIRC_FILE" ]; then
             log_error "No repository URL provided and no .dxclirc file found."
             log_error "Usage: dx .install-commands <git-repository-url>"
             return 1
         fi
-
+        
         log_info "No URL provided. Looking for URLs in .dxclirc file..."
-
+        
         # Flag to track if we're in the install-commands section
         in_install_commands=0
         # Flag to track if we found any URLs
         found_urls=0
-
+        
         # Read the .dxclirc file line by line
         while IFS= read -r line || [ -n "$line" ]; do
             # Remove leading/trailing whitespace
             line=$(echo "$line" | xargs)
-
+            
             # Skip empty lines and comments
             if [ -z "$line" ] || [[ "$line" == \#* ]]; then
                 continue
             fi
-
+            
             # Check for section headers
             if [[ "$line" == \[*\] ]]; then
                 if [ "$line" == "[install-commands]" ]; then
@@ -161,7 +161,7 @@ metacommand_install_commands() {
                 fi
                 continue
             fi
-
+            
             # Process git URLs in the install-commands section
             if [ $in_install_commands -eq 1 ] && [ -n "$line" ]; then
                 log_info "Installing commands from: $line"
@@ -169,13 +169,13 @@ metacommand_install_commands() {
                 found_urls=1
             fi
         done < "$DXCLIRC_FILE"
-
+        
         if [ $found_urls -eq 0 ]; then
             log_error "No repository URLs found in the [install-commands] section of .dxclirc"
             log_error "Usage: dx .install-commands <git-repository-url>"
             return 1
         fi
-
+        
         return 0
     fi
 
@@ -241,7 +241,7 @@ metacommand_install_globally() {
 
     log_info "DX CLI wrapper installed successfully at: $WRAPPER_PATH"
     log_info "You can now use 'dx' command from any directory within your project"
-
+    
     return 0
 }
 
@@ -255,8 +255,11 @@ metacommand_update() {
     TEMP_DIR=$(mktemp -d)
     DXCLI_DIR="$PROJECT_ROOT/.dxcli"
 
-    # Create a temporary update script in a location that won't be deleted
-    UPDATE_SCRIPT="/tmp/dxcli_update_$(date +%s).sh"
+    # Ensure cleanup on exit
+    cleanup() {
+        rm -rf "$TEMP_DIR"
+    }
+    trap cleanup EXIT
 
     log_info "Updating dxcli installation..."
 
@@ -264,97 +267,47 @@ metacommand_update() {
     log_info "Fetching latest version from $REPO_URL..."
     if ! git clone --depth 1 "$REPO_URL" "$TEMP_DIR" >/dev/null 2>&1; then
         log_error "Failed to clone repository"
-        rm -rf "$TEMP_DIR"
         return 1
     fi
 
-    # Create a separate update script that will run after this script exits
-    cat > "$UPDATE_SCRIPT" << 'EOF'
-#!/usr/bin/env bash
-set -e
-set -u
-set -o pipefail
+    # Create backup of current installation in system temp directory
+    BACKUP_DIR=$(mktemp -d)/dxcli-backup-$(date +%Y%m%d%H%M%S)
+    log_info "Creating backup of current installation at $BACKUP_DIR..."
+    mkdir -p "$BACKUP_DIR"
+    cp -R "$DXCLI_DIR" "$BACKUP_DIR"
 
-# Get arguments
-DXCLI_DIR="$1"
-TEMP_DIR="$2"
-REPO_URL="$3"
+    # List of files/directories to preserve (user customizations)
+    PRESERVE=(
+        "subcommands"
+    )
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+    # Temporarily move preserved directories
+    for item in "${PRESERVE[@]}"; do
+        if [ -e "$DXCLI_DIR/$item" ]; then
+            log_info "Preserving your custom $item..."
+            mv "$DXCLI_DIR/$item" "$TEMP_DIR/$item.preserved"
+        fi
+    done
 
-# Logging helpers
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" >&2
-}
+    # Copy new files
+    log_info "Installing updated files..."
+    cp -R "$TEMP_DIR/.dxcli/"* "$DXCLI_DIR/"
 
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1" >&2
-}
+    # Restore preserved directories
+    for item in "${PRESERVE[@]}"; do
+        if [ -e "$TEMP_DIR/$item.preserved" ]; then
+            log_info "Restoring your custom $item..."
+            rm -rf "${DXCLI_DIR:?}/${item:?}"
+            mv "$TEMP_DIR/$item.preserved" "$DXCLI_DIR/$item"
+        fi
+    done
 
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" >&2
-}
+    # Make all scripts executable
+    find "$DXCLI_DIR" -type f -name "*.sh" -exec chmod +x {} \;
 
-# Create backup of current installation in system temp directory
-BACKUP_DIR=$(mktemp -d)/dxcli-backup-$(date +%Y%m%d%H%M%S)
-log_info "Creating backup of current installation at $BACKUP_DIR..."
-mkdir -p "$BACKUP_DIR"
-cp -R "$DXCLI_DIR" "$BACKUP_DIR"
-
-# List of files/directories to preserve (user customizations)
-PRESERVE=(
-    "subcommands"
-)
-
-# Temporarily move preserved directories
-for item in "${PRESERVE[@]}"; do
-    if [ -e "$DXCLI_DIR/$item" ]; then
-        log_info "Preserving your custom $item..."
-        mv "$DXCLI_DIR/$item" "$TEMP_DIR/$item.preserved"
-    fi
-done
-
-# Copy new files
-log_info "Installing updated files..."
-cp -R "$TEMP_DIR/.dxcli/"* "$DXCLI_DIR/"
-
-# Restore preserved directories
-for item in "${PRESERVE[@]}"; do
-    if [ -e "$TEMP_DIR/$item.preserved" ]; then
-        log_info "Restoring your custom $item..."
-        rm -rf "${DXCLI_DIR:?}/${item:?}"
-        mv "$TEMP_DIR/$item.preserved" "$DXCLI_DIR/$item"
-    fi
-done
-
-# Make all scripts executable
-find "$DXCLI_DIR" -type f -name "*.sh" -exec chmod +x {} \;
-
-log_info "dxcli has been successfully updated!"
-log_info "Your previous installation was backed up to $BACKUP_DIR"
-log_info "If you encounter any issues, you can restore from the backup."
-
-# Clean up
-rm -rf "$TEMP_DIR"
-# Remove this script
-rm -f "$0"
-EOF
-
-    # Make the update script executable
-    chmod +x "$UPDATE_SCRIPT"
-
-    # Execute the update script as a separate process
-    log_info "Launching update process..."
-    nohup "$UPDATE_SCRIPT" "$DXCLI_DIR" "$TEMP_DIR" "$REPO_URL" > /dev/null 2>&1 &
-
-    log_info "Update process started in the background. You may continue using your terminal."
-    
-    # Don't clean up the temp directory as the background process needs it
-    trap - EXIT
+    log_info "dxcli has been successfully updated!"
+    log_info "Your previous installation was backed up to $BACKUP_DIR"
+    log_info "If you encounter any issues, you can restore from the backup."
     
     return 0
 }
@@ -368,7 +321,7 @@ print_command_section() {
     local title=$1
     local -n commands=$2  # nameref to array
     local padding=${3:-12}
-
+    
     echo -e "\n$title:"
     for cmd in "${commands[@]}"; do
         IFS='|' read -r name description <<< "$cmd"
@@ -380,14 +333,14 @@ print_command_section() {
 get_stacked_subcommands() {
     local -A command_map=()  # Use associative array to track unique commands
     local installations=()
-
+    
     # Get all parent installations (ordered by priority)
     mapfile -t installations < <(find_parent_dxcli_installations)
-
+    
     # Process each installation, with closer ones taking precedence
     for installation in "${installations[@]}"; do
         local subcommands_dir="$installation/subcommands"
-
+        
         if [[ -d "$subcommands_dir" ]]; then
             while IFS= read -r cmd_info; do
                 if [[ -n "$cmd_info" ]]; then
@@ -400,7 +353,7 @@ get_stacked_subcommands() {
             done < <(get_commands "$subcommands_dir")
         fi
     done
-
+    
     # Output the unique commands sorted alphabetically by name
     local sorted_commands=()
     for name in $(printf '%s\n' "${!command_map[@]}" | sort); do
@@ -416,7 +369,7 @@ get_metacommands() {
         ".install-globally|Install a dxcli wrapper script globally (run once per user)"
         ".update|Update the dxcli installation in the current project"
     )
-
+    
     # Sort metacommands alphabetically
     printf '%s\n' "${metacmds[@]}" | sort
 }
@@ -425,11 +378,11 @@ get_metacommands() {
 show_help() {
     local subcommands
     local metacommands
-
+    
     # Get all commands
     mapfile -t subcommands < <(get_stacked_subcommands)
     mapfile -t metacommands < <(get_metacommands)
-
+    
     # Calculate padding based on longest command name
     local max_length=0
     for cmd in "${subcommands[@]}" "${metacommands[@]}"; do
@@ -437,13 +390,13 @@ show_help() {
         (( ${#name} > max_length )) && max_length=${#name}
     done
     local padding=$(( max_length + 2 ))
-
+    
     cat << EOF
 Developer Experience CLI
 
 Usage: dx <subcommand>
 EOF
-
+    
     # Print command sections with dynamic padding
     [[ ${#subcommands[@]} -gt 0 ]] && print_command_section "Available subcommands" subcommands "$padding"
     [[ ${#metacommands[@]} -gt 0 ]] && print_command_section "Metacommands" metacommands "$padding"
@@ -454,22 +407,22 @@ EOF
 find_stacked_subcommand_script() {
     local cmd=$1
     local installations=()
-
+    
     # Get all parent installations (ordered by priority)
     mapfile -t installations < <(find_parent_dxcli_installations)
-
+    
     # Search in each installation, with closer ones taking precedence
     for installation in "${installations[@]}"; do
         local subcommands_dir="$installation/subcommands"
         local script_path=""
-
+        
         script_path=$(find_command_script "$cmd" "$subcommands_dir") || true
         if [[ -n "$script_path" ]]; then
             echo "$script_path"
             return 0
         fi
     done
-
+    
     return 1
 }
 
@@ -478,11 +431,11 @@ find_command_script() {
     local cmd=$1
     local dir=$2
     local script_path=""
-
+    
     if [[ ! -d "$dir" ]]; then
         return 1
     fi
-
+    
     while IFS= read -r -d '' script; do
         local metadata
         metadata=$(get_command_metadata "$script")
@@ -494,7 +447,7 @@ find_command_script() {
             fi
         fi
     done < <(find "$dir" -type f -name "*.sh" -print0)
-
+    
     return 1
 }
 
@@ -502,13 +455,13 @@ find_command_script() {
 execute_command() {
     local cmd=$1
     shift  # Remove the command name from the arguments
-
+    
     # Special case for help
     if [[ "$cmd" == "help" || -z "$cmd" ]]; then
         show_help
         return
     fi
-
+    
     # Check if it's a metacommand (starts with a dot)
     if [[ "$cmd" == .* ]]; then
         # Execute the corresponding metacommand function
@@ -527,7 +480,7 @@ execute_command() {
                 ;;
             *)
                 log_error "Unknown metacommand: $cmd"
-
+                
                 # Try to find a suggestion
                 local suggestion
                 suggestion=$(find_closest_command "$cmd")
@@ -535,21 +488,21 @@ execute_command() {
                     log_warning "Did you mean '$suggestion'?"
                     echo
                 fi
-
+                
                 show_help
                 exit 1
                 ;;
         esac
         return
     fi
-
+    
     # It's a regular subcommand, find the script
     local script_path=""
     script_path=$(find_stacked_subcommand_script "$cmd") || true
-
+    
     if [[ -z "$script_path" ]]; then
         log_error "Unknown command: $cmd"
-
+        
         # Try to find a suggestion
         local suggestion
         suggestion=$(find_closest_command "$cmd")
@@ -557,11 +510,11 @@ execute_command() {
             log_warning "Did you mean '$suggestion'?"
             echo
         fi
-
+        
         show_help
         exit 1
     fi
-
+    
     # Execute the command
     local metadata
     metadata=$(get_command_metadata "$script_path")
