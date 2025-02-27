@@ -255,13 +255,13 @@ metacommand_update() {
     TEMP_DIR=$(mktemp -d)
     DXCLI_DIR="$PROJECT_ROOT/.dxcli"
 
-    # Ensure cleanup on exit
+    # Ensure cleanup on exit if we don't proceed with the update
     cleanup() {
         rm -rf "$TEMP_DIR"
     }
     trap cleanup EXIT
 
-    log_info "Updating dxcli installation..."
+    log_info "Preparing to update dxcli installation..."
 
     # Clone the repository to get the latest version
     log_info "Fetching latest version from $REPO_URL..."
@@ -270,46 +270,79 @@ metacommand_update() {
         return 1
     fi
 
-    # Create backup of current installation in system temp directory
-    BACKUP_DIR=$(mktemp -d)/dxcli-backup-$(date +%Y%m%d%H%M%S)
-    log_info "Creating backup of current installation at $BACKUP_DIR..."
-    mkdir -p "$BACKUP_DIR"
-    cp -R "$DXCLI_DIR" "$BACKUP_DIR"
+    # Create a wrapper script that will perform the actual update
+    UPDATE_WRAPPER="/tmp/dxcli_update_wrapper_$(date +%s).sh"
+    cat > "$UPDATE_WRAPPER" << EOF
+#!/usr/bin/env bash
+set -e
 
-    # List of files/directories to preserve (user customizations)
-    PRESERVE=(
-        "subcommands"
-    )
+# Wait a moment for the original process to exit
+sleep 1
 
-    # Temporarily move preserved directories
-    for item in "${PRESERVE[@]}"; do
-        if [ -e "$DXCLI_DIR/$item" ]; then
-            log_info "Preserving your custom $item..."
-            mv "$DXCLI_DIR/$item" "$TEMP_DIR/$item.preserved"
-        fi
-    done
+# Define paths
+TEMP_DIR="$TEMP_DIR"
+DXCLI_DIR="$DXCLI_DIR"
+REPO_URL="$REPO_URL"
 
-    # Copy new files
-    log_info "Installing updated files..."
-    cp -R "$TEMP_DIR/.dxcli/"* "$DXCLI_DIR/"
+# Create backup of current installation
+BACKUP_DIR=\$(mktemp -d)/dxcli-backup-\$(date +%Y%m%d%H%M%S)
+echo "Creating backup of current installation at \$BACKUP_DIR..."
+mkdir -p "\$BACKUP_DIR"
+cp -R "\$DXCLI_DIR" "\$BACKUP_DIR"
 
-    # Restore preserved directories
-    for item in "${PRESERVE[@]}"; do
-        if [ -e "$TEMP_DIR/$item.preserved" ]; then
-            log_info "Restoring your custom $item..."
-            rm -rf "${DXCLI_DIR:?}/${item:?}"
-            mv "$TEMP_DIR/$item.preserved" "$DXCLI_DIR/$item"
-        fi
-    done
+# List of files/directories to preserve (user customizations)
+PRESERVE=(
+    "subcommands"
+)
 
-    # Make all scripts executable
-    find "$DXCLI_DIR" -type f -name "*.sh" -exec chmod +x {} \;
+# Temporarily move preserved directories
+for item in "\${PRESERVE[@]}"; do
+    if [ -e "\$DXCLI_DIR/\$item" ]; then
+        echo "Preserving your custom \$item..."
+        mv "\$DXCLI_DIR/\$item" "\$TEMP_DIR/\$item.preserved"
+    fi
+done
 
-    log_info "dxcli has been successfully updated!"
-    log_info "Your previous installation was backed up to $BACKUP_DIR"
-    log_info "If you encounter any issues, you can restore from the backup."
+# Copy new files
+echo "Installing updated files..."
+cp -R "\$TEMP_DIR/.dxcli/"* "\$DXCLI_DIR/"
+
+# Restore preserved directories
+for item in "\${PRESERVE[@]}"; do
+    if [ -e "\$TEMP_DIR/\$item.preserved" ]; then
+        echo "Restoring your custom \$item..."
+        rm -rf "\${DXCLI_DIR:?}/\${item:?}"
+        mv "\$TEMP_DIR/\$item.preserved" "\$DXCLI_DIR/\$item"
+    fi
+done
+
+# Make all scripts executable
+find "\$DXCLI_DIR" -type f -name "*.sh" -exec chmod +x {} \;
+
+echo "dxcli has been successfully updated!"
+echo "Your previous installation was backed up to \$BACKUP_DIR"
+echo "If you encounter any issues, you can restore from the backup."
+
+# Clean up
+rm -rf "\$TEMP_DIR"
+rm -f "\$0"  # Remove this wrapper script
+EOF
+
+    chmod +x "$UPDATE_WRAPPER"
+
+    log_info "Ready to update. The update will run after this command completes."
+    log_info "To proceed with the update, press Enter. To cancel, press Ctrl+C."
+    read -r
+
+    # Disable the cleanup trap since we want to keep the temp directory for the wrapper
+    trap - EXIT
+
+    # Execute the wrapper script and exit
+    log_info "Starting update process..."
+    "$UPDATE_WRAPPER" &
     
-    return 0
+    log_info "Update process initiated. Please wait a moment while it completes."
+    exit 0
 }
 
 #
