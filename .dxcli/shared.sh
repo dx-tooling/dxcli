@@ -180,17 +180,10 @@ find_closest_command() {
     local installations=()
     mapfile -t installations < <(find_parent_dxcli_installations)
     
-    # Collect all command names from metacommands (current installation only)
-    if [[ -d "$SCRIPT_FOLDER/metacommands" ]]; then
-        while IFS= read -r -d '' script; do
-            local metadata
-            metadata=$(get_command_metadata "$script")
-            if [[ -n "$metadata" ]]; then
-                local name="${metadata%%|*}"
-                command_names["$name"]=1
-            fi
-        done < <(find "$SCRIPT_FOLDER/metacommands" -type f -name "*.sh" -print0)
-    fi
+    # Add built-in metacommands
+    command_names[".install-commands"]=1
+    command_names[".install-globally"]=1
+    command_names[".update"]=1
     
     # Collect all command names from stacked subcommands
     for installation in "${installations[@]}"; do
