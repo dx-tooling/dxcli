@@ -188,11 +188,19 @@ metacommand_install_commands() {
 metacommand_install_globally() {
     # Path to the global wrapper script
     GLOBAL_WRAPPER_SRC="$SCRIPT_FOLDER/global-wrapper.sh"
+    # Path to the zsh completion script
+    ZSH_COMPLETION_SRC="$SCRIPT_FOLDER/_dx"
 
     # Check if the global wrapper script exists
     if [ ! -f "$GLOBAL_WRAPPER_SRC" ]; then
         log_error "Global wrapper script not found at: $GLOBAL_WRAPPER_SRC"
         return 1
+    fi
+
+    # Check if the zsh completion script exists
+    if [ ! -f "$ZSH_COMPLETION_SRC" ]; then
+        log_warning "ZSH completion script not found at: $ZSH_COMPLETION_SRC"
+        log_warning "Autocompletion will not be available"
     fi
 
     # Determine the appropriate bin directory
@@ -224,6 +232,28 @@ metacommand_install_globally() {
         chmod +x "$WRAPPER_PATH"
     fi
 
+    # Install zsh completion if available
+    if [ -f "$ZSH_COMPLETION_SRC" ]; then
+        # Create zsh completion directory if it doesn't exist
+        ZSH_COMPLETION_DIR="$HOME/.zsh/completion"
+        mkdir -p "$ZSH_COMPLETION_DIR"
+        
+        # Copy the completion script
+        log_info "Installing zsh completion script..."
+        cp "$ZSH_COMPLETION_SRC" "$ZSH_COMPLETION_DIR/_dx"
+        chmod +x "$ZSH_COMPLETION_DIR/_dx"
+        
+        # Check if the completion directory is in fpath
+        if ! grep -q "fpath=(\$fpath $ZSH_COMPLETION_DIR)" "$HOME/.zshrc" 2>/dev/null; then
+            log_info "Adding completion directory to fpath in .zshrc..."
+            echo "" >> "$HOME/.zshrc"
+            echo "# Add dxcli completion" >> "$HOME/.zshrc"
+            echo "fpath=(\$fpath $ZSH_COMPLETION_DIR)" >> "$HOME/.zshrc"
+            echo "autoload -Uz compinit && compinit" >> "$HOME/.zshrc"
+            log_warning "Please restart your shell or run: source ~/.zshrc"
+        fi
+    fi
+
     # Ensure BIN_DIR is in PATH
     if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
         # Determine shell configuration file
@@ -240,6 +270,9 @@ metacommand_install_globally() {
     fi
 
     log_info "DX CLI wrapper installed successfully at: $WRAPPER_PATH"
+    if [ -f "$ZSH_COMPLETION_SRC" ]; then
+        log_info "ZSH completion installed at: $ZSH_COMPLETION_DIR/_dx"
+    fi
     log_info "You can now use 'dx' command from any directory within your project"
     
     return 0
@@ -316,8 +349,23 @@ for item in "\${PRESERVE[@]}"; do
     fi
 done
 
+# Check if the ZSH completion script was updated
+if [ -f "\$TEMP_DIR/.dxcli/_dx" ]; then
+    # Check if global completion is installed
+    ZSH_COMPLETION_DIR="\$HOME/.zsh/completion"
+    if [ -f "\$ZSH_COMPLETION_DIR/_dx" ]; then
+        echo "Updating ZSH completion script..."
+        cp "\$TEMP_DIR/.dxcli/_dx" "\$ZSH_COMPLETION_DIR/_dx"
+        chmod +x "\$ZSH_COMPLETION_DIR/_dx"
+    fi
+fi
+
 # Make all scripts executable
 find "\$DXCLI_DIR" -type f -name "*.sh" -exec chmod +x {} \;
+# Make completion script executable if it exists
+if [ -f "\$DXCLI_DIR/_dx" ]; then
+    chmod +x "\$DXCLI_DIR/_dx"
+fi
 
 echo "dxcli has been successfully updated!"
 echo "Your previous installation was backed up to \$BACKUP_DIR"
