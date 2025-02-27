@@ -254,7 +254,10 @@ metacommand_update() {
     REPO_URL="https://github.com/Enterprise-Tooling-for-Symfony/dxcli.git"
     TEMP_DIR=$(mktemp -d)
     DXCLI_DIR="$PROJECT_ROOT/.dxcli"
-
+    
+    # Create a temporary update script
+    UPDATE_SCRIPT="$TEMP_DIR/update_script.sh"
+    
     # Ensure cleanup on exit
     cleanup() {
         rm -rf "$TEMP_DIR"
@@ -269,46 +272,89 @@ metacommand_update() {
         log_error "Failed to clone repository"
         return 1
     fi
-
-    # Create backup of current installation in system temp directory
-    BACKUP_DIR=$(mktemp -d)/dxcli-backup-$(date +%Y%m%d%H%M%S)
-    log_info "Creating backup of current installation at $BACKUP_DIR..."
-    mkdir -p "$BACKUP_DIR"
-    cp -R "$DXCLI_DIR" "$BACKUP_DIR"
-
-    # List of files/directories to preserve (user customizations)
-    PRESERVE=(
-        "subcommands"
-    )
-
-    # Temporarily move preserved directories
-    for item in "${PRESERVE[@]}"; do
-        if [ -e "$DXCLI_DIR/$item" ]; then
-            log_info "Preserving your custom $item..."
-            mv "$DXCLI_DIR/$item" "$TEMP_DIR/$item.preserved"
-        fi
-    done
-
-    # Copy new files
-    log_info "Installing updated files..."
-    cp -R "$TEMP_DIR/.dxcli/"* "$DXCLI_DIR/"
-
-    # Restore preserved directories
-    for item in "${PRESERVE[@]}"; do
-        if [ -e "$TEMP_DIR/$item.preserved" ]; then
-            log_info "Restoring your custom $item..."
-            rm -rf "${DXCLI_DIR:?}/${item:?}"
-            mv "$TEMP_DIR/$item.preserved" "$DXCLI_DIR/$item"
-        fi
-    done
-
-    # Make all scripts executable
-    find "$DXCLI_DIR" -type f -name "*.sh" -exec chmod +x {} \;
-
-    log_info "dxcli has been successfully updated!"
-    log_info "Your previous installation was backed up to $BACKUP_DIR"
-    log_info "If you encounter any issues, you can restore from the backup."
     
+    # Create a separate update script that will run after this script exits
+    cat > "$UPDATE_SCRIPT" << 'EOF'
+#!/usr/bin/env bash
+set -e
+set -u
+set -o pipefail
+
+# Get arguments
+DXCLI_DIR="$1"
+TEMP_DIR="$2"
+REPO_URL="$3"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Logging helpers
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1" >&2
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1" >&2
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+# Create backup of current installation in system temp directory
+BACKUP_DIR=$(mktemp -d)/dxcli-backup-$(date +%Y%m%d%H%M%S)
+log_info "Creating backup of current installation at $BACKUP_DIR..."
+mkdir -p "$BACKUP_DIR"
+cp -R "$DXCLI_DIR" "$BACKUP_DIR"
+
+# List of files/directories to preserve (user customizations)
+PRESERVE=(
+    "subcommands"
+)
+
+# Temporarily move preserved directories
+for item in "${PRESERVE[@]}"; do
+    if [ -e "$DXCLI_DIR/$item" ]; then
+        log_info "Preserving your custom $item..."
+        mv "$DXCLI_DIR/$item" "$TEMP_DIR/$item.preserved"
+    fi
+done
+
+# Copy new files
+log_info "Installing updated files..."
+cp -R "$TEMP_DIR/.dxcli/"* "$DXCLI_DIR/"
+
+# Restore preserved directories
+for item in "${PRESERVE[@]}"; do
+    if [ -e "$TEMP_DIR/$item.preserved" ]; then
+        log_info "Restoring your custom $item..."
+        rm -rf "${DXCLI_DIR:?}/${item:?}"
+        mv "$TEMP_DIR/$item.preserved" "$DXCLI_DIR/$item"
+    fi
+done
+
+# Make all scripts executable
+find "$DXCLI_DIR" -type f -name "*.sh" -exec chmod +x {} \;
+
+log_info "dxcli has been successfully updated!"
+log_info "Your previous installation was backed up to $BACKUP_DIR"
+log_info "If you encounter any issues, you can restore from the backup."
+
+# Clean up
+rm -rf "$TEMP_DIR"
+EOF
+
+    # Make the update script executable
+    chmod +x "$UPDATE_SCRIPT"
+    
+    # Execute the update script as a separate process
+    log_info "Launching update process..."
+    "$UPDATE_SCRIPT" "$DXCLI_DIR" "$TEMP_DIR" "$REPO_URL" &
+    
+    log_info "Update process started in the background. You may continue using your terminal."
     return 0
 }
 
