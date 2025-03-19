@@ -44,7 +44,6 @@ cp -r "$TMP_DIR/dxcli/.dxcli" ./
 # Make scripts executable
 chmod +x ./.dxcli/dxcli.sh
 find ./.dxcli/subcommands -type f -name "*.sh" -exec chmod +x {} \;
-find ./.dxcli/metacommands -type f -name "*.sh" -exec chmod +x {} \;
 
 # Create dx symlink
 ln -s ".dxcli/dxcli.sh" ./dx
