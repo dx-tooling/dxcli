@@ -110,10 +110,10 @@ metacommand_install_commands() {
         find "$SUBCOMMANDS_DIR" -type f -name "*.sh" -exec chmod +x {} \;
 
         log_info "Successfully installed $(echo ${#REPO_SUBCOMMANDS[@]}) subcommands from $REPO_URL (commit: $COMMIT_ID)"
-        
+
         # Clean up manually
         rm -rf "$TEMP_DIR"
-        
+
         return 0
     }
 
@@ -127,30 +127,30 @@ metacommand_install_commands() {
     # No URL provided, check for .dxclirc file
     if [ $# -eq 0 ]; then
         DXCLIRC_FILE="$PROJECT_ROOT/.dxclirc"
-        
+
         if [ ! -f "$DXCLIRC_FILE" ]; then
             log_error "No repository URL provided and no .dxclirc file found."
             log_error "Usage: dx .install-commands <git-repository-url>"
             return 1
         fi
-        
+
         log_info "No URL provided. Looking for URLs in .dxclirc file..."
-        
+
         # Flag to track if we're in the install-commands section
         in_install_commands=0
         # Flag to track if we found any URLs
         found_urls=0
-        
+
         # Read the .dxclirc file line by line
         while IFS= read -r line || [ -n "$line" ]; do
             # Remove leading/trailing whitespace
             line=$(echo "$line" | xargs)
-            
+
             # Skip empty lines and comments
             if [ -z "$line" ] || [[ "$line" == \#* ]]; then
                 continue
             fi
-            
+
             # Check for section headers
             if [[ "$line" == \[*\] ]]; then
                 if [ "$line" == "[install-commands]" ]; then
@@ -161,7 +161,7 @@ metacommand_install_commands() {
                 fi
                 continue
             fi
-            
+
             # Process git URLs in the install-commands section
             if [ $in_install_commands -eq 1 ] && [ -n "$line" ]; then
                 log_info "Installing commands from: $line"
@@ -169,13 +169,13 @@ metacommand_install_commands() {
                 found_urls=1
             fi
         done < "$DXCLIRC_FILE"
-        
+
         if [ $found_urls -eq 0 ]; then
             log_error "No repository URLs found in the [install-commands] section of .dxclirc"
             log_error "Usage: dx .install-commands <git-repository-url>"
             return 1
         fi
-        
+
         return 0
     fi
 
@@ -237,12 +237,12 @@ metacommand_install_globally() {
         # Create zsh completion directory if it doesn't exist
         ZSH_COMPLETION_DIR="$HOME/.zsh/completion"
         mkdir -p "$ZSH_COMPLETION_DIR"
-        
+
         # Copy the completion script
         log_info "Installing zsh completion script..."
         cp "$ZSH_COMPLETION_SRC" "$ZSH_COMPLETION_DIR/_dx"
         chmod +x "$ZSH_COMPLETION_DIR/_dx"
-        
+
         # Check if the completion directory is in fpath
         if ! grep -q "fpath=(\$fpath $ZSH_COMPLETION_DIR)" "$HOME/.zshrc" 2>/dev/null; then
             log_info "Adding completion directory to fpath in .zshrc..."
@@ -274,7 +274,7 @@ metacommand_install_globally() {
         log_info "ZSH completion installed at: $ZSH_COMPLETION_DIR/_dx"
     fi
     log_info "You can now use 'dx' command from any directory within your project"
-    
+
     return 0
 }
 
@@ -284,7 +284,7 @@ metacommand_update() {
     require_command git
 
     # Define repository URL and temporary directory
-    REPO_URL="https://github.com/Enterprise-Tooling-for-Symfony/dxcli.git"
+    REPO_URL="https://github.com/dx-tooling/dxcli.git"
     TEMP_DIR=$(mktemp -d)
     DXCLI_DIR="$PROJECT_ROOT/.dxcli"
 
@@ -388,7 +388,7 @@ EOF
     # Execute the wrapper script and exit
     log_info "Starting update process..."
     "$UPDATE_WRAPPER" &
-    
+
     log_info "Update process initiated. Please wait a moment while it completes."
     exit 0
 }
@@ -402,7 +402,7 @@ print_command_section() {
     local title=$1
     local -n commands=$2  # nameref to array
     local padding=${3:-12}
-    
+
     echo -e "\n$title:"
     for cmd in "${commands[@]}"; do
         IFS='|' read -r name description <<< "$cmd"
@@ -414,14 +414,14 @@ print_command_section() {
 get_stacked_subcommands() {
     local -A command_map=()  # Use associative array to track unique commands
     local installations=()
-    
+
     # Get all parent installations (ordered by priority)
     mapfile -t installations < <(find_parent_dxcli_installations)
-    
+
     # Process each installation, with closer ones taking precedence
     for installation in "${installations[@]}"; do
         local subcommands_dir="$installation/subcommands"
-        
+
         if [[ -d "$subcommands_dir" ]]; then
             while IFS= read -r cmd_info; do
                 if [[ -n "$cmd_info" ]]; then
@@ -434,7 +434,7 @@ get_stacked_subcommands() {
             done < <(get_commands "$subcommands_dir")
         fi
     done
-    
+
     # Output the unique commands sorted alphabetically by name
     local sorted_commands=()
     for name in $(printf '%s\n' "${!command_map[@]}" | sort); do
@@ -450,7 +450,7 @@ get_metacommands() {
         ".install-globally|Install a dxcli wrapper script globally (run once per user)"
         ".update|Update the dxcli installation in the current project"
     )
-    
+
     # Sort metacommands alphabetically
     printf '%s\n' "${metacmds[@]}" | sort
 }
@@ -459,11 +459,11 @@ get_metacommands() {
 show_help() {
     local subcommands
     local metacommands
-    
+
     # Get all commands
     mapfile -t subcommands < <(get_stacked_subcommands)
     mapfile -t metacommands < <(get_metacommands)
-    
+
     # Calculate padding based on longest command name
     local max_length=0
     for cmd in "${subcommands[@]}" "${metacommands[@]}"; do
@@ -471,13 +471,13 @@ show_help() {
         (( ${#name} > max_length )) && max_length=${#name}
     done
     local padding=$(( max_length + 2 ))
-    
+
     cat << EOF
 Developer Experience CLI
 
 Usage: dx <subcommand>
 EOF
-    
+
     # Print command sections with dynamic padding
     [[ ${#subcommands[@]} -gt 0 ]] && print_command_section "Available subcommands" subcommands "$padding"
     [[ ${#metacommands[@]} -gt 0 ]] && print_command_section "Metacommands" metacommands "$padding"
@@ -488,22 +488,22 @@ EOF
 find_stacked_subcommand_script() {
     local cmd=$1
     local installations=()
-    
+
     # Get all parent installations (ordered by priority)
     mapfile -t installations < <(find_parent_dxcli_installations)
-    
+
     # Search in each installation, with closer ones taking precedence
     for installation in "${installations[@]}"; do
         local subcommands_dir="$installation/subcommands"
         local script_path=""
-        
+
         script_path=$(find_command_script "$cmd" "$subcommands_dir") || true
         if [[ -n "$script_path" ]]; then
             echo "$script_path"
             return 0
         fi
     done
-    
+
     return 1
 }
 
@@ -512,11 +512,11 @@ find_command_script() {
     local cmd=$1
     local dir=$2
     local script_path=""
-    
+
     if [[ ! -d "$dir" ]]; then
         return 1
     fi
-    
+
     while IFS= read -r -d '' script; do
         local metadata
         metadata=$(get_command_metadata "$script")
@@ -528,7 +528,7 @@ find_command_script() {
             fi
         fi
     done < <(find "$dir" -type f -name "*.sh" -print0)
-    
+
     return 1
 }
 
@@ -536,13 +536,13 @@ find_command_script() {
 execute_command() {
     local cmd=$1
     shift  # Remove the command name from the arguments
-    
+
     # Special case for help
     if [[ "$cmd" == "help" || -z "$cmd" ]]; then
         show_help
         return
     fi
-    
+
     # Check if it's a metacommand (starts with a dot)
     if [[ "$cmd" == .* ]]; then
         # Execute the corresponding metacommand function
@@ -561,7 +561,7 @@ execute_command() {
                 ;;
             *)
                 log_error "Unknown metacommand: $cmd"
-                
+
                 # Try to find a suggestion
                 local suggestion
                 suggestion=$(find_closest_command "$cmd")
@@ -569,21 +569,21 @@ execute_command() {
                     log_warning "Did you mean '$suggestion'?"
                     echo
                 fi
-                
+
                 show_help
                 exit 1
                 ;;
         esac
         return
     fi
-    
+
     # It's a regular subcommand, find the script
     local script_path=""
     script_path=$(find_stacked_subcommand_script "$cmd") || true
-    
+
     if [[ -z "$script_path" ]]; then
         log_error "Unknown command: $cmd"
-        
+
         # Try to find a suggestion
         local suggestion
         suggestion=$(find_closest_command "$cmd")
@@ -591,11 +591,11 @@ execute_command() {
             log_warning "Did you mean '$suggestion'?"
             echo
         fi
-        
+
         show_help
         exit 1
     fi
-    
+
     # Execute the command
     local metadata
     metadata=$(get_command_metadata "$script_path")

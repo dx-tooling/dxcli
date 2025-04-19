@@ -19,13 +19,13 @@ It provides a standardized way to create, share, and execute common development 
 While in the root folder of your codebase, run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Enterprise-Tooling-for-Symfony/dxcli/refs/heads/main/dxify.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dx-tooling/dxcli/refs/heads/main/dxify.sh | bash
 ```
 
 Or download and run the script manually:
 
 ```bash
-wget https://raw.githubusercontent.com/Enterprise-Tooling-for-Symfony/dxcli/refs/heads/main/dxify.sh
+wget https://raw.githubusercontent.com/dx-tooling/dxcli/refs/heads/main/dxify.sh
 chmod +x dxify.sh
 ./dxify.sh
 ```

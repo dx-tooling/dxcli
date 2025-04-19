@@ -35,7 +35,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 # Clone the dxcli repository
 log_info "Fetching latest dxcli..."
-git clone --depth 1 https://github.com/Enterprise-Tooling-for-Symfony/dxcli.git "$TMP_DIR/dxcli" >/dev/null 2>&1
+git clone --depth 1 https://github.com/dx-tooling/dxcli.git "$TMP_DIR/dxcli" >/dev/null 2>&1
 
 # Copy the .dxcli directory to the project
 log_info "Installing dxcli..."
