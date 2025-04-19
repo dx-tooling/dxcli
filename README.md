@@ -1,4 +1,4 @@
-# DX CLI - Developer Experience CLI for Symfony Projects
+# DX CLI - Developer Experience CLI
 
 DX CLI is a lightweight, extensible command-line interface designed to enhance the developer experience in software develpoment projects.
 It provides a standardized way to create, share, and execute common development tasks across your team and projects.
